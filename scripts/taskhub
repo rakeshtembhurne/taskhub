@@ -1,3 +1,2 @@
 #!/usr/bin/env bash
-cd "$(dirname "$0")"
-exec bun run taskhub.ts "$@"
+exec bun run "/Users/rakesh/.claude/skills/taskhub/scripts/taskhub.ts" "$@"
