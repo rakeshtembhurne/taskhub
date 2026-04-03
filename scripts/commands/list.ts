@@ -18,11 +18,11 @@ export function list(args: string[]) {
   const ctx = detectContext(process.cwd());
 
   const filter: ListFilter = {
-    project: values.project || ctx.project || undefined,
+    project: values.project || undefined,
     agent: (values.agent as any) || undefined,
     status: (values.status as any) || undefined,
     priority: (values.priority as any) || undefined,
-    all: values.all,
+    all: values.all || true, // Default to showing all tasks
   };
 
   const tasks = listTasks(filter);
