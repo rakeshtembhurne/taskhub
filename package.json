@@ -1,0 +1,13 @@
+{
+  "name": "taskhub",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "task": "./scripts/task"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.11",
+    "@types/node": "^25.5.2",
+    "bun-types": "^1.0.0"
+  }
+}

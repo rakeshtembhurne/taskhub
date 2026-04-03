@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TaskHub</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1a1a2e; color: #eee; min-height: 100vh; }
+    header { background: #16213e; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #0f3460; }
+    h1 { font-size: 1.5rem; color: #e94560; }
+    .project { color: #888; font-size: 0.9rem; }
+    .board { display: flex; gap: 1rem; padding: 1rem 2rem; overflow-x: auto; min-height: calc(100vh - 80px); }
+    .column { background: #16213e; border-radius: 8px; min-width: 280px; max-width: 320px; flex: 1; display: flex; flex-direction: column; }
+    .column-header { padding: 1rem; font-weight: 600; border-bottom: 2px solid; display: flex; justify-content: space-between; align-items: center; }
+    .column-header .count { background: #0f3460; padding: 0.1rem 0.5rem; border-radius: 12px; font-size: 0.8rem; }
+    .column-body { padding: 0.5rem; flex: 1; min-height: 200px; }
+    .task { background: #0f3460; border-radius: 6px; padding: 0.75rem; margin-bottom: 0.5rem; cursor: pointer; transition: transform 0.1s; }
+    .task:hover { transform: translateY(-2px); }
+    .task-title { font-weight: 500; margin-bottom: 0.5rem; }
+    .task-meta { font-size: 0.75rem; color: #888; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .priority { padding: 0.1rem 0.4rem; border-radius: 4px; color: #fff; font-weight: 600; }
+    .agent { background: #1a1a2e; padding: 0.1rem 0.4rem; border-radius: 4px; }
+    .task-details { display: none; padding: 0.5rem 0; font-size: 0.85rem; color: #aaa; }
+    .task.expanded .task-details { display: block; }
+    .filter-bar { display: flex; gap: 0.5rem; padding: 0.5rem 2rem; background: #16213e; }
+    .filter-bar select { background: #0f3460; color: #eee; border: 1px solid #1a1a2e; padding: 0.3rem 0.6rem; border-radius: 4px; }
+    .filter-bar button { background: #0f3460; color: #eee; border: none; padding: 0.3rem 0.8rem; border-radius: 4px; cursor: pointer; }
+    .empty { text-align: center; color: #666; padding: 2rem; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>TaskHub</h1>
+    <span class="project" id="project"></span>
+  </header>
+  <div class="filter-bar">
+    <select id="filterProject"><option value="">All Projects</option></select>
+    <select id="filterAgent"><option value="">All Agents</option></select>
+    <select id="filterPriority"><option value="">All Priorities</option></select>
+    <button onclick="location.reload()">Refresh</button>
+  </div>
+  <div class="board">
+    <div class="column" data-status="backlog"><div class="column-header" style="border-color:#6b7280">Backlog <span class="count">0</span></div><div class="column-body"></div></div>
+    <div class="column" data-status="todo"><div class="column-header" style="border-color:#3b82f6">Todo <span class="count">0</span></div><div class="column-body"></div></div>
+    <div class="column" data-status="in_progress"><div class="column-header" style="border-color:#eab308">In Progress <span class="count">0</span></div><div class="column-body"></div></div>
+    <div class="column" data-status="done"><div class="column-header" style="border-color:#22c55e">Done <span class="count">0</span></div><div class="column-body"></div></div>
+  </div>
+
+  <script>
+    const tasks = {{TASKS}};
+    const priorityColors = {{PRIORITY_COLORS}};
+    const project = '{{PROJECT}}';
+
+    document.getElementById('project').textContent = project ? 'Project: ' + project : 'All Projects';
+
+    function renderTasks() {
+      const filters = {
+        project: document.getElementById('filterProject').value,
+        agent: document.getElementById('filterAgent').value,
+        priority: document.getElementById('filterPriority').value,
+      };
+
+      let filtered = tasks;
+      if (filters.project) filtered = filtered.filter(t => t.project === filters.project);
+      if (filters.agent) filtered = filtered.filter(t => t.assigned_agent === filters.agent);
+      if (filters.priority) filtered = filtered.filter(t => t.priority === filters.priority);
+
+      const columns = { backlog: [], todo: [], in_progress: [], done: [] };
+      filtered.forEach(t => {
+        if (columns[t.status]) columns[t.status].push(t);
+      });
+
+      Object.keys(columns).forEach(status => {
+        const col = document.querySelector('[data-status="' + status + '"]');
+        const body = col.querySelector('.column-body');
+        const count = col.querySelector('.count');
+        count.textContent = columns[status].length;
+        if (columns[status].length) {
+          body.innerHTML = columns[status].map(t => '
+            <div class="task" onclick="this.classList.toggle(\'expanded\')">
+              <div class="task-title">#' + t.id + ' ' + t.title + '</div>
+              <div class="task-meta">
+                <span class="priority" style="background:' + priorityColors[t.priority] + '">' + t.priority + '</span>
+                ' + (t.assigned_agent ? '<span class="agent">' + t.assigned_agent + '</span>' : '') + '
+              </div>
+              <div class="task-details">
+                ' + (t.description ? '<p>' + t.description + '</p>' : '') + '
+                <p>Project: ' + (t.project || '-') + '</p>
+                <p>Created by: ' + (t.created_by || '-') + '</p>
+                <p>Updated by: ' + (t.updated_by || '-') + '</p>
+                ' + (t.completed_at ? '<p>Completed: ' + t.completed_at + '</p>' : '') + '
+              </div>
+            </div>
+          ').join('');
+        } else {
+          body.innerHTML = '<div class="empty">No tasks</div>';
+        }
+      });
+    }
+
+    const projects = [...new Set(tasks.map(t => t.project).filter(Boolean))];
+    const agents = [...new Set(tasks.map(t => t.assigned_agent).filter(Boolean))];
+    projects.forEach(p => document.getElementById('filterProject').innerHTML += '<option value="' + p + '">' + p + '</option>');
+    agents.forEach(a => document.getElementById('filterAgent').innerHTML += '<option value="' + a + '">' + a + '</option>');
+
+    ['P1','P2','P3','P4'].forEach(p => document.getElementById('filterPriority').innerHTML += '<option value="' + p + '">' + p + '</option>');
+
+    ['filterProject','filterAgent','filterPriority'].forEach(id => {
+      document.getElementById(id).addEventListener('change', renderTasks);
+    });
+
+    renderTasks();
+  </script>
+</body>
+</html>
