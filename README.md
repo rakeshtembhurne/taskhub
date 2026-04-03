@@ -1,63 +1,54 @@
 # taskhub
 
-**Shared SQLite-backed task coordination CLI for multi-agent workflows.**
+**Machine-wide SQLite-backed task coordination for AI coding agents.**
 
-When you're running multiple AI coding agents (Claude Code, Open Code, Kilo Code, Pi) on the same project, you need a shared task list. `taskhub` gives all agents access to the same task database with a simple CLI and a Kanban dashboard.
+When you're running AI coding agents (Claude Code, Open Code, Kilo Code, Pi) across multiple projects on the same machine, you need a shared task tracker. `taskhub` provides a single SQLite database that all agents access — one task list for your entire machine, scoped by project.
+
+---
+
+## What It Is
+
+- **Machine-wide, not project-wide** — One database on your machine, tasks grouped by project
+- **Multi-agent** — All agents (Claude Code, Open Code, Kilo Code, Pi) share the same task list
+- **Multi-project** — Track tasks across all your projects from one CLI
+- **Simple** — Single SQLite file, no server, no setup
 
 ---
 
 ## Quick Start
 
-### 1. Setup (One Time)
+### 1. Install
 
 ```bash
-# Clone the repo
 git clone https://github.com/rakeshtembhurne/taskhub.git ~/.claude/skills/taskhub
-
-# Install dependencies (Bun required)
-cd ~/.claude/skills/taskhub
-bun install
+cd ~/.claude/skills/taskhub && bun install
 ```
 
 ### 2. Configure Your Agent
 
-Add this to your agent's startup script or `.zshrc`:
+Add to your shell profile (`.zshrc`, `.bashrc`):
 
 ```bash
-# Required: Tell taskhub which agent you are
+# Tell taskhub which agent you are
 export TASKHUB_AGENT=claude-code
-
-# Optional: Set default project (can also use .taskhub.json)
-export TASKHUB_PROJECT=my-project
 ```
 
-### 3. Create a Project Config (Optional)
-
-In your project root, create `.taskhub.json`:
-
-```json
-{
-  "project": "my-project"
-}
-```
-
----
-
-## Commands
+### 3. Use It
 
 ```bash
-# Create a task
-taskhub add "Build user authentication" --project=myapp --priority=P1 --tags=auth,backend
+# Add a task (project auto-detected from folder or .taskhub.json)
+taskhub add "Fix login bug" --priority=P1 --tags=auth
 
-# List tasks (filter by project, status, agent)
+# List tasks for current project
 taskhub list
-taskhub list --project=myapp --status=todo
-taskhub list --agent=claude-code --priority=P1
 
-# Update a task
-taskhub update 1 --status=in_progress --assigned=opencode
+# List tasks across all projects
+taskhub list --all
 
-# Mark task done
+# Work on a task
+taskhub update 1 --status=in_progress
+
+# Mark done
 taskhub done 1
 
 # Open Kanban dashboard
@@ -66,139 +57,145 @@ taskhub dashboard
 
 ---
 
-## Examples
+## How It Works
 
-### Create Tasks with Different Priorities
+### Database Location
+
+All tasks stored in: `~/.taskhub/taskhub.db`
+
+One database for your entire machine. Projects separate tasks within it.
+
+### Project Detection
+
+When you run `taskhub` without `--project`, it detects the project from:
+
+1. `TASKHUB_PROJECT` env variable
+2. `.taskhub.json` in current directory or any parent
+3. Current folder name
+
+### Agent Detection
+
+The `TASKHUB_AGENT` env var identifies which agent is running the command. This is automatically set for audit fields (`created_by`, `updated_by`).
+
+---
+
+## Commands
 
 ```bash
-taskhub add "Setup database" --priority=P1 --tags=backend
-taskhub add "Add CSS styling" --priority=P3 --tags=frontend
-taskhub add "Write tests" --priority=P2 --tags=testing
-```
+# Create
+taskhub add "Build checkout flow" --project=myapp --priority=P1 --tags=commerce
 
-### Filter and Track
+# List
+taskhub list                              # Current project, non-done
+taskhub list --all                        # All projects, non-done
+taskhub list --project=myapp --status=todo   # Filter by project + status
+taskhub list --agent=claude-code          # Tasks assigned to agent
+taskhub list --priority=P1                # Filter by priority
 
-```bash
-# Show all P1 tasks across projects
-taskhub list --priority=P1 --all
+# Update
+taskhub update 1 --status=in_progress
+taskhub update 1 --assigned=kilocode
+taskhub update 1 --priority=P2
 
-# Show tasks assigned to you
-taskhub list --assigned=claude-code
+# Complete
+taskhub done 1
 
-# Show tasks in progress
-taskhub list --status=in_progress
+# Dashboard
+taskhub dashboard  # Opens Kanban at http://localhost:8080
 ```
 
 ---
 
-## Features
+## Task Fields
 
-### Task Properties
-
-| Field | Description | Example |
-|-------|-------------|---------|
-| `id` | Auto-increment ID | `1`, `2`, `3` |
-| `title` | Task description | `"Build auth"` |
-| `project` | Project name | `myapp` |
-| `status` | `backlog`, `todo`, `in_progress`, `done`, `cancelled` | `todo` |
-| `priority` | `P1` (highest) to `P4` (lowest) | `P1` |
-| `assigned_agent` | Agent handling it | `claude-code` |
-| `tags` | Comma-separated labels | `auth,backend` |
-| `created_by` | Agent who created it | `claude-code` |
-| `updated_by` | Agent who last modified it | `opencode` |
-
-### Context Detection
-
-**Agent detection** — automatically set via `TASKHUB_AGENT` environment variable.
-
-**Project detection** — resolved in order:
-1. `TASKHUB_PROJECT` environment variable
-2. `.taskhub.json` in current directory or parents
-3. Current folder name
-
-### Dashboard
-
-Run `taskhub dashboard` to open a Kanban board in your browser at `http://localhost:8080`.
-
-- Drag tasks between columns
-- Filter by project, agent, priority
-- Real-time updates
+| Field | Description |
+|-------|-------------|
+| `id` | Auto-increment ID |
+| `title` | Task description |
+| `project` | Project name (auto-detected) |
+| `status` | `backlog`, `todo`, `in_progress`, `done`, `cancelled` |
+| `priority` | `P1` (highest) → `P4` (lowest) |
+| `assigned_agent` | Agent working on it |
+| `tags` | Comma-separated labels |
+| `created_by` | Agent who created it |
+| `updated_by` | Agent who last modified it |
 
 ---
 
 ## Architecture
 
 ```
-taskhub/
-├── scripts/
-│   ├── taskhub           # CLI entry point (bash wrapper)
-│   ├── taskhub.ts        # Command router
-│   ├── commands/         # Individual command implementations
-│   │   ├── add.ts
-│   │   ├── list.ts
-│   │   ├── update.ts
-│   │   ├── done.ts
-│   │   └── dashboard.ts
-│   ├── lib/              # Shared modules
-│   │   ├── database.ts   # SQLite connection (bun:sqlite)
-│   │   ├── queries.ts    # SQL query builders
-│   │   ├── schema.ts     # Database schema
-│   │   ├── config.ts     # Constants and paths
-│   │   ├── detect.ts     # Context detection
-│   │   └── types.ts     # TypeScript interfaces
-│   └── www/
-│       └── index.html    # Kanban dashboard (single HTML)
-├── SKILL.md              # Agent skill documentation
-└── package.json
+┌─────────────────────────────────────────────────────────────┐
+│                        Your Machine                          │
+│                                                              │
+│   ~/.taskhub/taskhub.db (SQLite)                            │
+│                                                              │
+│   ┌─────────────────────────────────────────────────────┐   │
+│   │  Project: myapp    │  Project: cli     │  Project: web  │   │
+│   │  ─────────────     │  ────────────     │  ────────────  │   │
+│   │  • Task 1    P1   │  • Task 5   P2   │  • Task 8  P1  │   │
+│   │  • Task 2    P2   │  • Task 6   P1   │  • Task 9  P3  │   │
+│   │  • Task 3    P3   │                   │                 │   │
+│   └─────────────────────────────────────────────────────┘   │
+│                                                              │
+│   Agents:                                                    │
+│   ┌────────┐  ┌────────┐  ┌────────┐  ┌────────┐           │
+│   │ Claude │  │ Open   │  │ Kilo   │  │  Pi    │           │
+│   │ Code   │  │ Code   │  │ Code   │  │        │           │
+│   └────────┘  └────────┘  └────────┘  └────────┘           │
+│        │           │           │           │                 │
+│        └───────────┴───────────┴───────────┘                 │
+│                        │                                     │
+│               taskhub CLI (read/write)                      │
+└─────────────────────────────────────────────────────────────┘
 ```
-
-**Database**: SQLite at `~/.taskhub/taskhub.db`
 
 ---
 
-## Multi-Agent Workflow
+## Example Workflow
 
-```
-┌─────────────────────────────────────────────────────┐
-│                  Your Project                        │
-│                                                      │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐         │
-│  │ Claude   │  │ Open     │  │ Kilo     │         │
-│  │ Code     │  │ Code     │  │ Code     │         │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘         │
-│       │             │             │                 │
-│       └─────────────┼─────────────┘                 │
-│                     │                               │
-│              ┌──────▼──────┐                        │
-│              │  taskhub    │                        │
-│              │  (SQLite)   │                        │
-│              └─────────────┘                        │
-└─────────────────────────────────────────────────────┘
-```
+```bash
+# You're on project "myapp", Claude Code agent
+taskhub add "Implement API endpoint" --priority=P1
+taskhub add "Add unit tests" --priority=P2
 
-**Example workflow:**
-1. Claude Code starts a feature: `taskhub add "Implement API" --priority=P1`
-2. Kilo Code checks what's needed: `taskhub list --project=myapp --status=todo`
-3. Open Code picks up a task: `taskhub update 2 --assigned=opencode --status=in_progress`
-4. Open Code finishes: `taskhub done 2`
-5. View progress: `taskhub dashboard`
+# Switch to another project
+cd ~/projects/cli-tool
+
+# OpenCode agent picks up a task
+taskhub list --project=cli-tool --status=todo
+taskhub update 5 --assigned=opencode --status=in_progress
+
+# Kilo Code checks what's P1 across all projects
+taskhub list --priority=P1 --all
+
+# OpenCode finishes
+taskhub done 5
+
+# View everything on dashboard
+taskhub dashboard
+```
 
 ---
 
 ## Requirements
 
-- **Bun** — JavaScript runtime (https://bun.sh)
-- **SQLite** — bundled with Bun's `bun:sqlite`
+- **Bun** — https://bun.sh
+- **SQLite** — bundled with Bun (`bun:sqlite`)
 
 ---
 
 ## Contributing
 
-1. Fork the repo
-2. Create a branch from `develop`: `git checkout -b feature/my-feature`
-3. Make changes and commit
-4. Open a PR to `develop`
-5. After review, merge to `master` for release
+```bash
+# Clone
+git clone https://github.com/rakeshtembhurne/taskhub.git ~/.claude/skills/taskhub
+
+# Branch from develop
+git checkout -b feature/my-feature develop
+
+# Commit, push, PR to develop → merge to master for release
+```
 
 ---
 
