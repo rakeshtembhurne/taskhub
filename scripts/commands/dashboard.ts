@@ -24,7 +24,7 @@ export async function dashboard(_args: string[]) {
   html = html.replace('{{PROJECT}}', ctx.project || '');
 
   const server = Bun.serve({
-    port: 3000,
+    port: 8888,
     async fetch(req) {
       const url = new URL(req.url);
       if (url.pathname === '/' || url.pathname === '/index.html') {
