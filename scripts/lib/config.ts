@@ -2,8 +2,8 @@ import { homedir } from 'os';
 import { join } from 'path';
 import type { AgentType } from './types.ts';
 
-export const DATA_DIR = join(homedir(), '.agents', 'taskhub-data');
-export const DB_PATH = join(DATA_DIR, 'tasks.db');
+export const DATA_DIR = join(homedir(), '.taskhub');
+export const DB_PATH = join(DATA_DIR, 'taskhub.db');
 export const CONFIG_PATH = join(DATA_DIR, 'config.json');
 
 export const DEFAULT_PRIORITIES = ['P1', 'P2', 'P3', 'P4'] as const;

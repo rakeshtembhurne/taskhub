@@ -6,7 +6,8 @@ import { existsSync } from 'fs';
 
 export async function dashboard(_args: string[]) {
   const ctx = detectContext(process.cwd());
-  const tasks = listTasks({ project: ctx.project || undefined });
+  // Dashboard shows all tasks globally, not filtered by project
+  const tasks = listTasks({ all: true });
   const tasksJson = JSON.stringify(tasks);
   const priorityColors = JSON.stringify(PRIORITY_COLORS);
   const statusColors = JSON.stringify(STATUS_COLORS);
@@ -21,7 +22,7 @@ export async function dashboard(_args: string[]) {
   html = html.replace('{{TASKS}}', tasksJson);
   html = html.replace('{{PRIORITY_COLORS}}', priorityColors);
   html = html.replace('{{STATUS_COLORS}}', statusColors);
-  html = html.replace('{{PROJECT}}', ctx.project || '');
+  html = html.replace('{{PROJECT}}', 'All Projects');
 
   const server = Bun.serve({
     port: 8888,
